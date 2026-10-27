@@ -35,3 +35,33 @@ def tmp_data_dir(tmp_path):
     d.mkdir()
     (d / ORIGINAL_NAME).write_text(json.dumps({"metadata": {}, "reklame": contoh_reklame()}))
     return d
+
+
+def make_tiny_layers(school_a_xy=(1000, 1000)):
+    """Lapisan buatan dalam meter (EPSG:32749), seperti koordinat buatan di notebook."""
+    import geopandas as gpd
+    from shapely.geometry import LineString, Point, box
+
+    ax, ay = school_a_xy
+    # Layer 1 (Fasilitas)
+    fasilitas = gpd.GeoDataFrame(
+        {"name": ["SDN Contoh", None], "jenis": ["SD", "SMP"]},
+        geometry=[box(ax, ay, ax + 20, ay + 20), Point(5000, 5000)], crs="EPSG:32749")
+    # Layer 3 (Jalan)
+    jalan = gpd.GeoDataFrame(
+        {"name": ["Jalan Utama Contoh", "Gang Contoh"], "tipe_jalan": ["jalan utama", "kecil"]},
+        geometry=[LineString([(0, 3000), (6000, 3000)]), LineString([(0, 4000), (6000, 4000)])],
+        crs="EPSG:32749")
+    batas = box(0, 0, 8000, 8000)
+    return fasilitas, jalan, batas
+
+
+@pytest.fixture
+def tiny_layers():
+    return make_tiny_layers()
+
+
+@pytest.fixture
+def tiny_zones(tiny_layers):
+    from gis import Zones
+    return Zones.build(*tiny_layers)
