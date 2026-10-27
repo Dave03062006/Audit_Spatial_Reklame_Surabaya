@@ -18,6 +18,8 @@ from ui.screens.loading import LoadingScreen, Loader
 from ui.screens.panels import DetailPanel, GuideCard, LeftPanel
 from ui.screens.peta import PetaScreen
 from ui.screens.setup_admin import SetupAdmin
+from ui.screens.lapor import LaporScreen
+from ui.screens.lokasi_boleh import LokasiBolehScreen
 from ui.screens.tabel import TabelScreen
 from ui.widgets import Button, Toast, text
 
@@ -108,6 +110,8 @@ class App:
     def register_screens(self):
         self.screens["Peta"] = PetaScreen(self)
         self.screens["Tabel Pelanggaran"] = TabelScreen(self)
+        self.screens["Lokasi yang Boleh"] = LokasiBolehScreen(self)
+        self.screens["Laporkan Reklame"] = LaporScreen(self)
 
     # ------------------------------------------------------------
     # Data audit
