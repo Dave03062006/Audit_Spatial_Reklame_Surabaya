@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+cache/
+exports/
+data/*.bak
+data/*.tmp
+data/reklame_db.json
+data/laporan.json
+data/users.json
+data/settings.json
