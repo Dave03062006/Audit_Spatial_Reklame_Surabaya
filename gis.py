@@ -183,6 +183,12 @@ def recheck_row(row, zones, today):
     return pt, p, status_of(row, p, today)
 
 
+def to_latlon(x, y):
+    """Titik meter (EPSG:32749) -> (lat, lon) untuk disimpan."""
+    p = gpd.GeoSeries([Point(x, y)], crs=CRS_METER).to_crs(CRS_SOURCE).iloc[0]
+    return round(p.y, 7), round(p.x, 7)
+
+
 def nearest_info(pt, zones):
     titik = gpd.GeoDataFrame(geometry=[pt], crs=CRS_METER)
     info = {"sekolah_nama": None, "sekolah_jenis": None,

@@ -201,7 +201,11 @@ class Dropdown:
         self._state = {}
 
     def option_rect(self, i):
-        return pygame.Rect(self.rect.x, self.rect.bottom + i * self.rect.height, self.rect.width, self.rect.height)
+        h = self.rect.height
+        if self.rect.bottom + len(self.options) * h > theme.WINDOW[1]:
+            # tidak muat ke bawah: buka ke atas
+            return pygame.Rect(self.rect.x, self.rect.y - (len(self.options) - i) * h, self.rect.width, h)
+        return pygame.Rect(self.rect.x, self.rect.bottom + i * h, self.rect.width, h)
 
     def draw(self, surface):
         pygame.draw.rect(surface, theme.PUTIH, self.rect, border_radius=8)

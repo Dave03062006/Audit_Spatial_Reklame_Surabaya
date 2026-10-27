@@ -16,11 +16,15 @@ from ui import theme
 from ui.map_view import MapView, TileCache, Viewport
 from ui.screens.loading import LoadingScreen, Loader
 from ui.screens.panels import DetailPanel, GuideCard, LeftPanel
+from ui.screens.perlu_cek import PerluCekScreen
 from ui.screens.peta import PetaScreen
 from ui.screens.setup_admin import SetupAdmin
+from ui.screens.kelola import KelolaScreen
 from ui.screens.lapor import LaporScreen
+from ui.screens.login import LoginModal
 from ui.screens.lokasi_boleh import LokasiBolehScreen
 from ui.screens.tabel import TabelScreen
+from ui.screens.verifikasi import VerifikasiScreen
 from ui.widgets import Button, Toast, text
 
 PUBLIC_TABS = ["Peta", "Tabel Pelanggaran", "Lokasi yang Boleh", "Laporkan Reklame"]
@@ -112,6 +116,9 @@ class App:
         self.screens["Tabel Pelanggaran"] = TabelScreen(self)
         self.screens["Lokasi yang Boleh"] = LokasiBolehScreen(self)
         self.screens["Laporkan Reklame"] = LaporScreen(self)
+        self.screens["Kelola"] = KelolaScreen(self)
+        self.screens["Verifikasi"] = VerifikasiScreen(self)
+        self.screens["Perlu Cek"] = PerluCekScreen(self)
 
     # ------------------------------------------------------------
     # Data audit
@@ -167,7 +174,22 @@ class App:
         return lines
 
     def admin_detail_actions(self, id):
-        return []
+        if self.role != "admin":
+            return []
+        kelola = self.screens["Kelola"]
+
+        def edit():
+            self.set_tab("Kelola")
+            kelola.start_edit(id)
+
+        def move():
+            self.set_tab("Kelola")
+            kelola.start_move(id)
+
+        actions = [("Ubah data", edit), ("Geser lokasi", move)]
+        if self.tab == "Kelola":
+            actions.append(("Hapus", lambda: kelola.request_delete(id)))
+        return actions
 
     # ------------------------------------------------------------
     # Peta dan pilihan
@@ -238,7 +260,12 @@ class App:
         return self.screens[self.tab]
 
     def open_login(self):
-        pass
+        self.modal = LoginModal(self)
+
+    def login_as(self, username):
+        self.role, self.admin_name = "admin", username
+        self._build_topbar()
+        self.toast.show(f"Masuk sebagai admin {username}.")
 
     def logout(self):
         self.role, self.admin_name = "warga", None
