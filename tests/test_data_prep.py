@@ -12,22 +12,7 @@ from data_prep import (OSMDownloadError, build_cache, cache_is_fresh,
                        jenis_sekolah, load_zones, tipe_jalan)
 from gis import check_point
 
-# geser lapisan buatan ke sekitar Surabaya (UTM 49S) supaya bisa diubah ke lat/lon dengan wajar
-DX, DY = 690000, 9190000
-
-
-def fake_osm():
-    fas, jalan, batas = make_tiny_layers()
-    fas = fas.copy()
-    fas["geometry"] = fas.geometry.translate(DX, DY)
-    fas["amenity"] = ["school", "school"]
-    fas = fas.drop(columns=["jenis"]).to_crs("EPSG:4326")
-    jalan = jalan.copy()
-    jalan["geometry"] = jalan.geometry.translate(DX, DY)
-    jalan["highway"] = ["primary", ["residential", "service"]]
-    jalan = jalan.drop(columns=["tipe_jalan"]).to_crs("EPSG:4326")
-    batas = gpd.GeoDataFrame(geometry=[translate(batas, DX, DY)], crs="EPSG:32749").to_crs("EPSG:4326")
-    return {"fasilitas": fas, "jalan": jalan, "batas": batas}
+from conftest import DX, DY, fake_osm
 
 
 class CountingFetcher:

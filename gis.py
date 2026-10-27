@@ -121,8 +121,18 @@ def _parse_date(s):
         return None
 
 
+def is_blank(v):
+    """None, NaN (dari pandas), atau teks kosong dianggap tidak ada isinya."""
+    if v is None:
+        return True
+    if isinstance(v, float) and v != v:
+        return True
+    return isinstance(v, str) and not v.strip()
+
+
 def status_of(row, pelanggaran, today):
-    if row.get("perlu_cek_manual") and not row.get("kategori_dikonfirmasi"):
+    dikonfirmasi = row.get("kategori_dikonfirmasi")
+    if not is_blank(row.get("perlu_cek_manual")) and (is_blank(dikonfirmasi) or not dikonfirmasi):
         return "Perlu cek"
     if row.get("kategori_materi") == "Umum":
         return "Tidak diaudit"

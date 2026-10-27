@@ -28,9 +28,9 @@ OVERLAY_STYLE = {
 }
 ROAD_STYLE = {  # tipe: (warna isi, warna tepi, lebar dasar px pada zoom 15)
     "tol": ((246, 214, 160), (205, 160, 90), 6),
-    "jalan utama": (theme.PUTIH, (185, 198, 207), 7),
-    "penghubung": (theme.PUTIH, (205, 214, 221), 5),
-    "kecil": ((236, 239, 241), None, 3),
+    "jalan utama": (theme.PUTIH, (160, 176, 188), 7),
+    "penghubung": (theme.PUTIH, (190, 201, 210), 5),
+    "kecil": ((222, 227, 231), None, 3),
 }
 
 
@@ -186,7 +186,9 @@ class TileCache:
         part = geom.intersection(tile_box)
         self._draw_poly(surf, part, (*color, alpha), x0, y1, m, hole_color=(0, 0, 0, 0))
         if line_alpha:
-            for ring in _lines(part.boundary) if not part.is_empty else []:
+            # garis tepi dari bentuk asli, bukan dari potongan tile (supaya tidak ada garis sambungan tile)
+            edge = geom.boundary.intersection(tile_box.buffer(2 * m))
+            for ring in _lines(edge):
                 pts = self._to_px(ring.coords, x0, y1, m)
                 if len(pts) >= 2:
                     pygame.draw.lines(surf, (*color, line_alpha), False, pts, 2)
@@ -218,10 +220,10 @@ class TileCache:
             if z < 13 and tipe == "kecil":
                 continue
             fill, edge, base_w = ROAD_STYLE[tipe]
-            w = max(1, int(round(base_w * scale)))
+            w = max(2 if tipe != "kecil" else 1, int(round(base_w * scale)))
             geoms = part.geometry[part["tipe_jalan"] == tipe]
             lines = [ln for g in geoms for ln in _lines(g)]
-            if edge and w >= 3:
+            if edge:
                 for ln in lines:
                     pygame.draw.lines(surf, edge, False, self._to_px(ln.coords, x0, y1, m), w + 2)
             for ln in lines:

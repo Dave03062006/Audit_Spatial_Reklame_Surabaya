@@ -140,3 +140,17 @@ def test_normalize_kategori():
     assert normalize_kategori("minuman beralkohol") == "Minuman beralkohol"
     with pytest.raises(ValueError):
         normalize_kategori("bir")
+
+
+def test_audit_all_mixed_perlu_cek_none_is_not_flagged(tiny_zones):
+    # pandas mengubah None menjadi NaN bila kolom bercampur teks; NaN tidak boleh dianggap "perlu cek"
+    lat, lon = to_lonlat(1300, 1000)
+    recs = [
+        {"id": "a", "latitude": lat, "longitude": lon, "kategori_materi": "Rokok",
+         "perlu_cek_manual": None, "tayang_selesai": None},
+        {"id": "b", "latitude": lat, "longitude": lon, "kategori_materi": "Umum",
+         "perlu_cek_manual": "BINTANG bisa bir", "tayang_selesai": None},
+    ]
+    audit = audit_all(load_reklame(recs), tiny_zones, TODAY)
+    assert audit.loc["a", "status"] == "Melanggar"
+    assert audit.loc["b", "status"] == "Perlu cek"
