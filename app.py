@@ -18,6 +18,7 @@ from ui.screens.loading import LoadingScreen, Loader
 from ui.screens.panels import DetailPanel, GuideCard, LeftPanel
 from ui.screens.peta import PetaScreen
 from ui.screens.setup_admin import SetupAdmin
+from ui.screens.tabel import TabelScreen
 from ui.widgets import Button, Toast, text
 
 PUBLIC_TABS = ["Peta", "Tabel Pelanggaran", "Lokasi yang Boleh", "Laporkan Reklame"]
@@ -106,6 +107,7 @@ class App:
 
     def register_screens(self):
         self.screens["Peta"] = PetaScreen(self)
+        self.screens["Tabel Pelanggaran"] = TabelScreen(self)
 
     # ------------------------------------------------------------
     # Data audit
@@ -191,6 +193,12 @@ class App:
             self.select(ev.ids)
         elif ev.kind == "empty":
             self.select([])
+
+    def show_on_map(self, id):
+        self.set_tab("Peta")
+        r = self.audit[id]
+        self.vp.fly_to(r["x"], r["y"], 16)
+        self.select([id])
 
     def update_search(self, q):
         self.search_results = search.find(self.search_index, q)
