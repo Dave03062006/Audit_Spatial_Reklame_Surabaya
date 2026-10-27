@@ -112,3 +112,20 @@ def test_recheck_updates_status_after_move(app_with_admin):
     app.recheck("T-near")
     assert app.audit["T-near"]["status"] == "Patuh"
     assert app.counts()["Melanggar"] == 1
+
+
+def test_every_tab_opens(app_with_admin):
+    from app import ADMIN_TABS as ADMIN, PUBLIC_TABS
+    app = make_app(app_with_admin)
+    app.close_guide()
+    for name in PUBLIC_TABS:
+        app.set_tab(name)
+        for _ in range(3):
+            app.step([])
+        assert app.tab == name
+    app.login_as("dave")
+    for name in PUBLIC_TABS + ADMIN:
+        app.set_tab(name)
+        for _ in range(3):
+            app.step([])
+        assert app.tab == name
