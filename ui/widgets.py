@@ -10,8 +10,8 @@ import pygame
 from ui import theme
 
 
-def text(surface, s, pos, size=14, color=theme.TEKS, bold=False, anchor="topleft", max_w=None):
-    f = theme.font(size, bold)
+def text(surface, s, pos, size=14, color=theme.TEKS, bold=False, anchor="topleft", max_w=None, display=False):
+    f = theme.display(size, bold) if display else theme.font(size, bold)
     s = str(s)
     if max_w is not None and f.size(s)[0] > max_w:
         while s and f.size(s + "…")[0] > max_w:
@@ -65,8 +65,8 @@ class Button:
         "primary": (theme.NAVY, theme.PUTIH, None),
         "secondary": (theme.PUTIH, theme.NAVY, theme.GARIS),
         "danger": (theme.MERAH, theme.PUTIH, None),
-        "tab": (theme.NAVY, theme.PUTIH, None),
-        "tab_active": (theme.PUTIH, theme.NAVY, None),
+        "tab": (theme.NAVY, theme.TAB_REDUP, None),
+        "tab_active": (theme.NAVY, theme.PUTIH, None),
     }
 
     def __init__(self, rect, label, on_click, kind="primary", enabled=True, size=14):
@@ -86,13 +86,26 @@ class Button:
         hover = self.enabled and self.rect.collidepoint(pygame.mouse.get_pos())
         if hover and self.kind in ("primary", "danger"):
             bg = tuple(max(0, c - 18) for c in bg)
-        if hover and self.kind == "tab":
-            bg = theme.NAVY_2
+        if hover and self.kind == "secondary":
+            bg = theme.LATAR
+        if self.kind in ("tab", "tab_active"):
+            self._draw_tab(surface, hover, fg)
+            return
         pygame.draw.rect(surface, bg, self.rect, border_radius=8)
         if border:
             pygame.draw.rect(surface, border, self.rect, 1, border_radius=8)
         text(surface, self.label, self.rect.center, self.size, fg, bold=True, anchor="center",
              max_w=self.rect.width - 12)
+
+    def _draw_tab(self, surface, hover, fg):
+        """Tab bar atas: teks saja, tab aktif diberi garis bawah putih."""
+        if hover and self.kind == "tab":
+            pygame.draw.rect(surface, theme.NAVY_2, self.rect.inflate(0, -8), border_radius=6)
+            fg = theme.PUTIH
+        text(surface, self.label, self.rect.center, self.size, fg, bold=True, anchor="center")
+        if self.kind == "tab_active":
+            bar = pygame.Rect(self.rect.x + 10, theme.TOPBAR_H - 4, self.rect.width - 20, 4)
+            pygame.draw.rect(surface, theme.PUTIH, bar, border_top_left_radius=2, border_top_right_radius=2)
 
     def handle(self, event):
         if self.enabled and _clicked(event, self.rect, self._state):
@@ -292,7 +305,8 @@ class Table:
     def row_rect(self, i):
         return pygame.Rect(self.rect.x, self.rect.y + self.HEAD_H + i * self.ROW_H, self.rect.width, self.ROW_H)
 
-    def draw(self, surface, cell_color=None):
+    def draw(self, surface, cell_color=None, cell_draw=None):
+        """cell_draw(surface, key, row, rect) boleh menggambar sel sendiri; kembalikan True bila sudah."""
         pygame.draw.rect(surface, theme.PUTIH, self.rect, border_radius=8)
         pygame.draw.rect(surface, theme.LATAR, (self.rect.x, self.rect.y, self.rect.width, self.HEAD_H),
                          border_top_left_radius=8, border_top_right_radius=8)
@@ -311,6 +325,9 @@ class Table:
             pygame.draw.line(surface, theme.GARIS, rr.topleft, rr.topright)
             x = rr.x
             for key, label, w in self.columns:
+                if cell_draw and cell_draw(surface, key, row, pygame.Rect(x, rr.y, w, rr.height)):
+                    x += w
+                    continue
                 v = row.get(key)
                 if isinstance(v, list):
                     v = ", ".join(v)

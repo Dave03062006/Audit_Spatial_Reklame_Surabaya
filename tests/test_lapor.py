@@ -68,12 +68,16 @@ def test_map_click_places_pin(app_with_admin):
 
 
 def test_kategori_alkohol_has_no_allowed_area_note(app_with_admin):
-    from ui.screens.lokasi_boleh import NOTE
+    from ui.screens.lokasi_boleh import NOTE_ALKOHOL
     app = make_app(app_with_admin)
     app.close_guide()
     app.set_tab("Lokasi yang Boleh")
     app.step([])
-    assert "dilarang di seluruh Surabaya" in NOTE
+    assert "dilarang di seluruh Surabaya" in NOTE_ALKOHOL
     scr = app.screens["Lokasi yang Boleh"]
+    assert scr.overlays() == {"area_boleh", "zona", "koridor"}
+    # centang lapisan di panel kiri juga berlaku di tab ini
+    app.set_layer("zona", False)
+    app.set_layer("koridor", False)
     assert scr.overlays() == {"area_boleh"}
     assert {m.id for m in scr.markers()} == {"T-far"}

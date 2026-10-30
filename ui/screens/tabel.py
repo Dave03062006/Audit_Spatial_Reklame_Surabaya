@@ -3,9 +3,10 @@
 import pygame
 
 from export import pasal_text, pelanggaran_csv
-from gis import KATEGORI_ALKOHOL
+from gis import KATEGORI_ALKOHOL, RULE_SHORT
 from ui import theme
 from ui.screens.base import Screen
+from ui.screens.panels import chip
 from ui.widgets import Button, Dropdown, Table, TextInput, text
 
 PASAL_OPTIONS = {"Semua pasal": None, "Ps. 449 (1) d": "449_1_d", "Ps. 449 (1) c": "449_1_c",
@@ -62,14 +63,25 @@ class TabelScreen(Screen):
         p = pelanggaran_csv(list(self.app.audit.values()), self.app.zones, self.app.base / "exports", self.app.today)
         self.app.toast.show(f"Tersimpan: exports/{p.name}")
 
+    def draw_cell(self, surface, key, row, rect):
+        if key != "pasal":
+            return False
+        cx = rect.x + 12
+        for code in row["pelanggaran"]:
+            cx = chip(surface, RULE_SHORT[code], (cx, rect.centery), theme.MERAH, theme.MERAH_MUDA,
+                      anchor="midleft").right + 6
+        return True
+
     def draw_content(self, surface, rect):
         x = rect.x + 24
-        text(surface, "Tabel Pelanggaran", (x, rect.y + 20), 22, theme.NAVY, bold=True)
-        text(surface, f"{len(self.table.rows)} reklame melanggar sesuai filter. Klik baris untuk melihatnya di peta.",
-             (x + 240, rect.y + 28), 14, theme.TEKS_SEKUNDER)
+        title = text(surface, "Tabel Pelanggaran", (x, rect.y + 14), 34, theme.NAVY, display=True)
+        n = theme.fmt(len(self.table.rows))
+        text(surface, f"{n} reklame melanggar sesuai filter. Klik baris untuk melihatnya di peta.",
+             (title.right + 16, title.centery + 2), 14, theme.TEKS_SEKUNDER, anchor="midleft")
         self.query.draw(surface)
         self.export_btn.draw(surface)
-        self.table.draw(surface, cell_color=lambda k, r: theme.MERAH if k == "pasal" else theme.TEKS)
+        self.table.draw(surface, cell_color=lambda k, r: theme.TEKS_LABEL if k == "id" else theme.TEKS,
+                        cell_draw=self.draw_cell)
         if not self.table.rows:
             text(surface, "Tidak ada pelanggaran yang cocok dengan filter.", self.table.rect.center, 15,
                  theme.TEKS_LABEL, anchor="center")
@@ -77,7 +89,7 @@ class TabelScreen(Screen):
         self.next.enabled = self.table.page < self.table.page_count - 1
         self.prev.draw(surface)
         self.next.draw(surface)
-        text(surface, f"Halaman {self.table.page + 1} dari {self.table.page_count}",
+        text(surface, f"Halaman {self.table.page + 1} dari {theme.fmt(self.table.page_count)}",
              (self.prev.rect.right + 90, self.prev.rect.centery), 14, theme.TEKS_SEKUNDER, anchor="center")
         self.kategori.draw(surface)
         self.pasal.draw(surface)

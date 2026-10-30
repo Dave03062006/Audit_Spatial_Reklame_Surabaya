@@ -63,7 +63,7 @@ class LoadingScreen:
         surface.fill(theme.LATAR)
         pygame.draw.rect(surface, theme.PUTIH, self.card, border_radius=12)
         x = self.card.x + 32
-        text(surface, "Audit Reklame Surabaya", (x, self.card.y + 28), 22, theme.NAVY, bold=True)
+        text(surface, "Audit Reklame Surabaya", (x, self.card.y + 24), 32, theme.NAVY, display=True)
         loader = self.app.loader
         if loader.error:
             text_block(surface, loader.error, (x, self.card.y + 76), self.card.width - 64, 15, theme.MERAH)

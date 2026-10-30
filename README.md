@@ -48,9 +48,11 @@ pip install -r requirements.txt
 
 ## Cara pakai
 
-- **Peta**: titik merah melanggar, biru patuh, kuning perlu cek. Klik titik untuk melihat alasan dan jarak ke sekolah
-  terdekat. Lingkaran bernomor adalah kumpulan reklame di titik yang sama; klik untuk melihat daftarnya.
-  Seret untuk menggeser peta, scroll untuk zoom. Cari jalan di kotak kiri atas.
+- **Peta**: titik merah melanggar, biru patuh, kuning perlu cek. Klik titik untuk melihat alasannya: garis putus-putus
+  di peta mengukur jarak ke sekolah dan jalan utama terdekat, dan panel kanan membandingkan jarak itu dengan batas
+  aturan (500 m dan 25 m). Lingkaran bernomor adalah kumpulan reklame; bagian merah pada cincinnya menunjukkan porsi
+  yang melanggar. Klik untuk melihat daftarnya. Seret untuk menggeser peta, scroll atau tombol +/− untuk zoom.
+  Cari jalan di kotak kiri atas.
 - **Tabel Pelanggaran**: filter per kategori, pasal, atau alamat. Klik baris untuk melihatnya di peta.
   **Ekspor CSV** menyimpan file ke folder `exports/`.
 - **Lokasi yang Boleh**: area hijau yang memenuhi syarat jarak untuk iklan rokok.
@@ -91,4 +93,4 @@ Pengujian memakai lapisan buatan kecil (seperti koordinat buatan di notebook wee
   sudah di-geocode. 1.441 alamat tanpa nomor rumah ditandai "lokasi perkiraan".
 - Batas 25 m koridor jalan utama adalah asumsi kelompok karena PP 28/2024 tidak menyebut jarak.
 - Lokasi yang boleh hanya memenuhi syarat jarak PP 28/2024. Pemasang tetap wajib mengurus izin Pemkot.
-- Font: Public Sans (SIL Open Font License).
+- Font: Public Sans dan Barlow Condensed (SIL Open Font License).

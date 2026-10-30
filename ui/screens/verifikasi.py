@@ -7,6 +7,7 @@ import gis
 from export import pasal_text
 from ui import theme
 from ui.screens.base import Screen, panel_bg
+from ui.screens.panels import draw_alasan
 from ui.widgets import Button, Modal, TextInput, text, text_block
 
 
@@ -143,10 +144,11 @@ class VerifikasiScreen(Screen):
         y = text_block(surface, f"Dikirim {lap['waktu'].replace('T', ' ')}", (x, y), w, 13, theme.TEKS_SEKUNDER)
         codes = gis.check_point(Point(*self.pin), lap["kategori_materi"], self.app.zones)
         info = gis.nearest_info(Point(*self.pin), self.app.zones)
-        lines = gis.alasan_text(codes, info) or ["Tidak ditemukan dugaan pelanggaran di titik ini."]
-        y += 12
-        for line in lines:
-            y = text_block(surface, line, (x, y), w, 13, theme.MERAH if codes else theme.TEKS) + 6
+        y += 14
+        if lap["kategori_materi"] in gis.KATEGORI_AUDIT or lap["kategori_materi"] == gis.KATEGORI_ALKOHOL:
+            y = draw_alasan(surface, x, y, w, lap["kategori_materi"], codes, info)
+        else:
+            y = text_block(surface, "Reklame umum, tidak diperiksa.", (x, y), w, 13, theme.TEKS) + 6
         text_block(surface, "Klik peta untuk memindahkan titik bila lokasi laporan kurang tepat, lalu tekan Terima.",
                    (x, y + 10), w, 13, theme.TEKS_LABEL)
         self.tolak_btn.draw(surface)

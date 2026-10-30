@@ -4,6 +4,7 @@ Jalankan:  python app.py
 """
 
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -13,7 +14,7 @@ import gis
 import search
 from storage import ORIGINAL_NAME, LoginGuard, Store
 from ui import theme
-from ui.map_view import MapView, TileCache, Viewport
+from ui.map_view import MapView, Measure, TileCache, Viewport
 from ui.screens.loading import LoadingScreen, Loader
 from ui.screens.panels import DetailPanel, GuideCard, LeftPanel
 from ui.screens.perlu_cek import PerluCekScreen
@@ -57,6 +58,8 @@ class App:
         self.modal = None
         self.guide_open = False
         self._detail_cache = {}
+        self._info_cache = {}
+        self._badges, self._badges_at = {}, 0.0
         self.markers_dirty = True
 
         self.left_rect = pygame.Rect(0, theme.TOPBAR_H, theme.LEFT_W, theme.WINDOW[1] - theme.TOPBAR_H)
@@ -137,6 +140,7 @@ class App:
     def recheck(self, id):
         row = self.store.get_reklame(id)
         self._detail_cache.pop(id, None)
+        self._info_cache.pop(id, None)
         if row.get("dihapus") or row.get("latitude") is None:
             self.audit.pop(id, None)
             self.selected_ids = [i for i in self.selected_ids if i != id]
@@ -146,13 +150,35 @@ class App:
             rec.update(x=pt.x, y=pt.y, pelanggaran=p, status=status)
             self.audit[id] = rec
         self.markers_dirty = True
+        if id in self.selected_ids:
+            self.select(self.selected_ids)   # garis ukur ikut pindah
+
+    def info(self, id):
+        """Sekolah dan jalan utama terdekat untuk satu reklame (disimpan supaya tidak dihitung tiap frame)."""
+        if id not in self._info_cache:
+            from shapely.geometry import Point
+            r = self.audit[id]
+            self._info_cache[id] = gis.nearest_info(Point(r["x"], r["y"]), self.zones)
+        return self._info_cache[id]
+
+    def measures_for(self, x, y, info):
+        """Garis ukur di peta dari (x, y) ke sekolah dan jalan utama terdekat. Yang lebih dari 1 km tidak digambar."""
+        out = []
+        if info.get("sekolah_xy") and info["sekolah_jarak_m"] <= 1000:
+            nama = info["sekolah_nama"]
+            nama = nama if len(nama) <= 24 else nama[:23] + "…"
+            out.append(Measure(x, y, *info["sekolah_xy"], f"{nama} · {theme.fmt(info['sekolah_jarak_m'])} m",
+                               theme.TEAL_TUA))
+        if info.get("jalan_utama_xy") and info["jalan_utama_jarak_m"] <= 1000:
+            out.append(Measure(x, y, *info["jalan_utama_xy"],
+                               f"Jalan utama · {theme.fmt(info['jalan_utama_jarak_m'])} m", theme.NAVY))
+        return out
 
     def detail_lines(self, id):
         if id in self._detail_cache:
             return self._detail_cache[id]
         r = self.audit[id]
-        from shapely.geometry import Point
-        info = gis.nearest_info(Point(r["x"], r["y"]), self.zones)
+        info = self.info(id)
         st = r["status"]
         lines = []
         if st == "Perlu cek":
@@ -213,6 +239,10 @@ class App:
     def select(self, ids):
         self.selected_ids = list(ids)
         self.map.selected_id = ids[0] if len(ids) == 1 else None
+        self.map.measures = []
+        r = self.audit.get(ids[0]) if len(ids) == 1 else None
+        if r is not None and r.get("kategori_materi") in gis.KATEGORI_AUDIT:
+            self.map.measures = self.measures_for(r["x"], r["y"], self.info(r["id"]))
 
     def select_from_map(self, ev):
         if ev.kind == "marker":
@@ -280,15 +310,31 @@ class App:
         s["panduan_dilihat"] = True
         self.store.save_settings(s)
 
+    def badges(self):
+        """Angka kecil di tab admin: laporan menunggu dan reklame perlu cek. Dihitung ulang tiap detik."""
+        if self.role != "admin":
+            return {}
+        if time.time() - self._badges_at > 1:
+            self._badges = {"Verifikasi": sum(lap["status"] == "menunggu" for lap in self.store.laporan()),
+                            "Perlu Cek": sum(r["status"] == "Perlu cek" for r in self.audit.values())}
+            self._badges_at = time.time()
+        return self._badges
+
     def _build_topbar(self):
         self.tab_buttons = []
-        x = 220
+        self._badges_at = 0
+        self._tab_badges = dict(self.badges())
+        self.admin_divider_x = None
+        x = 168
         f = theme.font(14, bold=True)
         for name in self.tab_names():
-            w = f.size(name)[0] + 24
+            if name == ADMIN_TABS[0]:
+                self.admin_divider_x = x + 6
+                x += 16
+            w = f.size(name)[0] + 28
             kind = "tab_active" if name == self.tab else "tab"
-            self.tab_buttons.append(Button((x, 6, w, 44), name, lambda n=name: self.set_tab(n), kind=kind))
-            x += w + 4
+            self.tab_buttons.append(Button((x, 6, w, 50), name, lambda n=name: self.set_tab(n), kind=kind))
+            x += w + 2 + (26 if self._tab_badges.get(name) else 0)
         if self.role == "admin":
             self.auth_button = Button((theme.WINDOW[0] - 96, 6, 84, 44), "Keluar", self.logout, kind="secondary")
         else:
@@ -346,7 +392,6 @@ class App:
             self.map.draw(s, scr.overlays())
             scr.draw_left(s, self.left_rect)
             scr.draw_right(s, self.right_rect)
-            self._draw_map_hint(s)
         else:
             scr.draw_content(s, self.content_rect)
         self._draw_topbar(s)
@@ -359,21 +404,28 @@ class App:
             self.guide.draw(s)
         self.toast.draw(s)
 
-    def _draw_map_hint(self, s):
-        r = pygame.Rect(self.map_rect.x + 12, self.map_rect.bottom - 44, 340, 32)
-        pygame.draw.rect(s, theme.PUTIH, r, border_radius=8)
-        pygame.draw.rect(s, theme.GARIS, r, 1, border_radius=8)
-        text(s, f"Zoom {self.vp.zoom} · seret untuk geser, scroll untuk zoom", (r.x + 10, r.centery), 12,
-             theme.TEKS_SEKUNDER, anchor="midleft", max_w=r.width - 16)
-
     def _draw_topbar(self, s):
         pygame.draw.rect(s, theme.NAVY, (0, 0, theme.WINDOW[0], theme.TOPBAR_H))
-        text(s, "Audit Reklame Surabaya", (16, theme.TOPBAR_H // 2), 17, theme.PUTIH, bold=True, anchor="midleft")
+        text(s, "Audit Reklame", (16, 7), 24, theme.PUTIH, display=True)
+        text(s, "Kota Surabaya", (17, 35), 11, theme.TAB_REDUP, bold=True)
+        if self.admin_divider_x is not None:
+            pygame.draw.line(s, theme.NAVY_2, (self.admin_divider_x, 14), (self.admin_divider_x, theme.TOPBAR_H - 14), 2)
+        badges = self.badges()
+        if badges != self._tab_badges:   # jumlah berubah: atur ulang lebar tab
+            self._build_topbar()
         for b in self.tab_buttons:
             b.draw(s)
+            n = badges.get(b.label)
+            if n:
+                f = theme.font(11, bold=True)
+                r = pygame.Rect(0, 0, max(20, f.size(str(n))[0] + 10), 20)
+                r.midleft = (b.rect.right - 4, b.rect.centery - 3)
+                pygame.draw.rect(s, theme.AMBER, r, border_radius=10)
+                text(s, n, r.center, 11, theme.PUTIH, bold=True, anchor="center")
         if self.role == "admin":
-            text(s, f"Admin · {self.admin_name}", (self.auth_button.rect.x - 12, theme.TOPBAR_H // 2), 13,
-                 theme.PUTIH, anchor="midright")
+            ax = self.auth_button.rect.x - 12
+            text(s, "ADMIN", (ax, 12), 10, theme.TAB_REDUP, bold=True, anchor="topright")
+            text(s, self.admin_name, (ax, 26), 14, theme.PUTIH, bold=True, anchor="topright", max_w=120)
         self.auth_button.draw(s)
 
     def step(self, events):

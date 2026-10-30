@@ -6,8 +6,9 @@ from shapely.geometry import Point
 
 import gis
 from ui import theme
-from ui.screens.base import Screen, panel_bg
-from ui.widgets import Button, Dropdown, TextInput, text, text_block, wrap
+from ui.screens.base import Screen, panel_bg, section_label
+from ui.screens.panels import draw_alasan, note_box
+from ui.widgets import Button, Dropdown, TextInput, text, text_block
 
 KATEGORI_LAPOR = ["Rokok", "Rokok elektronik", "Minuman beralkohol", "Umum"]
 STEP_TITLES = ["Lokasi", "Isi reklame", "Kirim"]
@@ -21,6 +22,7 @@ class LaporWizard:
     def reset(self):
         self.step = 1
         self.pin = None
+        self.info = {}
         self.isi = ""
         self.kategori = "Rokok"
         self.nama = ""
@@ -29,6 +31,8 @@ class LaporWizard:
     def set_pin(self, x, y):
         self.pin = (x, y)
         self.app.map.pin = self.pin
+        self.info = gis.nearest_info(Point(x, y), self.app.zones)
+        self.app.map.measures = self.app.measures_for(x, y, self.info)
         self.error = None
 
     def next(self):
@@ -65,6 +69,7 @@ class LaporWizard:
                                          codes, self.nama.strip() or None)
         self.reset()
         self.app.map.pin = None
+        self.app.map.measures = []
         self.app.toast.show("Laporan terkirim. Menunggu verifikasi admin.")
         return rid
 
@@ -124,8 +129,13 @@ class LaporScreen(Screen):
             text_block(surface, "Klik peta tepat di lokasi reklame. Geser atau perbesar peta bila perlu. "
                                 "Titik merah dan biru adalah reklame yang sudah tercatat.",
                        (x, rect.y + 110), width, 14, theme.TEKS_SEKUNDER)
-            status = "Lokasi sudah ditandai." if w.pin else "Belum ada lokasi."
-            text(surface, status, (x, rect.y + 200), 14, theme.TEKS if w.pin else theme.TEKS_LABEL, bold=bool(w.pin))
+            if w.pin:
+                text(surface, "Lokasi sudah ditandai", (x, rect.y + 196), 14, theme.TEKS, bold=True)
+                text_block(surface, "Garis di peta menunjukkan jaraknya ke sekolah dan jalan utama terdekat. "
+                                    "Klik tempat lain untuk memindahkan.", (x, rect.y + 220), width, 13,
+                           theme.TEKS_SEKUNDER)
+            else:
+                text(surface, "Belum ada lokasi", (x, rect.y + 196), 14, theme.TEKS_LABEL)
         elif w.step == 2:
             text(surface, "Teks atau merek pada reklame", (x, rect.y + 136), 13, theme.TEKS_LABEL, bold=True)
             self.isi.error = w.error is not None and "Isi teks" in (w.error or "")
@@ -135,18 +145,17 @@ class LaporScreen(Screen):
             self.nama.draw(surface)
             self.kategori.draw(surface)
         else:
-            codes, lines = w.hasil()
-            text(surface, "Hasil pemeriksaan otomatis", (x, rect.y + 110), 14, theme.TEKS, bold=True)
-            y = rect.y + 140
-            for line in lines:
-                bg = theme.MERAH_MUDA if codes else theme.BIRU_MUDA
-                tmp_h = len(wrap(line, 13, width - 24)) * int(13 * 1.45) + 20
-                pygame.draw.rect(surface, bg, (x, y, width, tmp_h), border_radius=8)
-                text_block(surface, line, (x + 12, y + 10), width - 24, 13)
-                y += tmp_h + 8
-            text_block(surface, f"Isi: {w.isi} · Kategori: {w.kategori}", (x, y + 6), width, 13, theme.TEKS_SEKUNDER)
+            codes, _ = w.hasil()
+            text(surface, w.isi, (x, rect.y + 104), 17, theme.TEKS, bold=True, max_w=width)
+            text(surface, w.kategori, (x, rect.y + 128), 13, theme.TEKS_SEKUNDER)
+            section_label(surface, "Hasil cek otomatis", (x, rect.y + 160))
+            y = rect.y + 186
+            if w.kategori in gis.KATEGORI_AUDIT or w.kategori == gis.KATEGORI_ALKOHOL:
+                y = draw_alasan(surface, x, y, width, w.kategori, codes, w.info)
+            else:
+                y = note_box(surface, "Reklame umum tidak diperiksa terhadap aturan rokok atau alkohol.", x, y, width)
             text_block(surface, "Ini dugaan awal. Admin akan memeriksa laporan sebelum masuk ke data resmi.",
-                       (x, y + 40), width, 13, theme.TEKS_LABEL)
+                       (x, y + 4), width, 13, theme.TEKS_LABEL)
         if w.error:
             text_block(surface, w.error, (x, rect.bottom - 110), width, 14, theme.MERAH)
         self.back_btn.enabled = w.step > 1

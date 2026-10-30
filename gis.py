@@ -14,6 +14,7 @@ from datetime import date
 
 import geopandas as gpd
 from shapely.geometry import LineString, Point, box
+from shapely.ops import nearest_points
 from shapely.prepared import prep
 
 CRS_SOURCE = "EPSG:4326"
@@ -189,20 +190,30 @@ def to_latlon(x, y):
     return round(p.y, 7), round(p.x, 7)
 
 
+def _nearest_xy(pt, gdf):
+    """Titik pada bentuk terdekat di gdf yang paling dekat ke pt."""
+    g = gdf.geometry.iloc[gdf.sindex.nearest(pt)[1][0]]
+    q = nearest_points(pt, g)[1]
+    return q.x, q.y
+
+
 def nearest_info(pt, zones):
+    """Sekolah dan jalan utama terdekat, jaraknya, dan titik terdekat (x, y) pada bentuknya."""
     titik = gpd.GeoDataFrame(geometry=[pt], crs=CRS_METER)
-    info = {"sekolah_nama": None, "sekolah_jenis": None,
-            "sekolah_jarak_m": None, "jalan_utama_jarak_m": None}
+    info = {"sekolah_nama": None, "sekolah_jenis": None, "sekolah_jarak_m": None, "sekolah_xy": None,
+            "jalan_utama_jarak_m": None, "jalan_utama_xy": None}
     if not zones.fasilitas.empty:
         s = gpd.sjoin_nearest(titik, zones.fasilitas[["name", "jenis", "geometry"]], distance_col="jarak").iloc[0]
         nama = s["name"]
         info["sekolah_nama"] = nama if isinstance(nama, str) and nama.strip() else "Sekolah tanpa nama"
         info["sekolah_jenis"] = s["jenis"]
         info["sekolah_jarak_m"] = int(round(s["jarak"]))
+        info["sekolah_xy"] = _nearest_xy(pt, zones.fasilitas)
     utama = zones.jalan_utama
     if not utama.empty:
         j = gpd.sjoin_nearest(titik, utama[["geometry"]], distance_col="jarak").iloc[0]
         info["jalan_utama_jarak_m"] = int(round(j["jarak"]))
+        info["jalan_utama_xy"] = _nearest_xy(pt, utama)
     return info
 
 
